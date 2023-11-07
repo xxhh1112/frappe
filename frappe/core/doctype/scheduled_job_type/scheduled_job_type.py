@@ -2,7 +2,8 @@
 # License: MIT. See LICENSE
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from random import randrange
 
 import click
 from croniter import croniter
@@ -11,6 +12,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import get_datetime, now_datetime
 from frappe.utils.background_jobs import enqueue, is_job_enqueued
+from frappe.utils.scheduler import get_scheduler_tick_interval
 
 
 class ScheduledJobType(Document):
@@ -38,6 +40,7 @@ class ScheduledJobType(Document):
 			"Yearly",
 			"Annual",
 		]
+		jitter: DF.Int
 		last_execution: DF.Datetime | None
 		method: DF.Data
 		next_execution: DF.Datetime | None
@@ -110,7 +113,9 @@ class ScheduledJobType(Document):
 		# immediately, even when it's meant to be daily.
 		# A dynamic fallback like current time might miss the scheduler interval and job will never start.
 		last_execution = get_datetime(self.last_execution or self.creation)
-		return croniter(self.cron_format, last_execution).get_next(datetime)
+		next_execution = croniter(self.cron_format, last_execution).get_next(datetime)
+
+		return next_execution + timedelta(seconds=self.jitter)
 
 	def execute(self):
 		self.scheduler_log = None
@@ -149,6 +154,11 @@ class ScheduledJobType(Document):
 			self.scheduler_log.db_set("details", frappe.get_traceback())
 		if status == "Start":
 			self.db_set("last_execution", now_datetime(), update_modified=False)
+		if status == "Complete" and self.frequency in ("Hourly Long", "Daily Long"):
+			tick = get_scheduler_tick_interval()
+			jitter = randrange(0, 900, tick)
+			self.db_set("jitter", jitter, update_modified=False)
+
 		frappe.db.commit()
 
 	def get_queue_name(self):
