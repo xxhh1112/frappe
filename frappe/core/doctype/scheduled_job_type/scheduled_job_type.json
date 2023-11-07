@@ -99,6 +99,7 @@
    "description": "Delays next execution to ease workload.",
    "fieldname": "jitter",
    "fieldtype": "Int",
+   "hidden": 1,
    "label": "Jitter",
    "non_negative": 1
   }
@@ -110,7 +111,7 @@
    "link_fieldname": "scheduled_job_type"
   }
  ],
- "modified": "2023-11-07 16:08:54.803959",
+ "modified": "2023-11-07 19:16:50.294486",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Scheduled Job Type",
